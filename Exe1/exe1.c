@@ -35,7 +35,7 @@ int scrsizey; // Vertical screen size
 
 int resx;
 int resy;
-// int *img;
+int *img;
 
 #define MASTER 0
 
@@ -62,10 +62,10 @@ char path[10] = "./images/";
 char filename[64];
 char buffer[20];
 
-void putpixel(int *img, int x, int y, int color);
-void julia(int xpt, int ypt, int maxIter, int *img);
-void mandel(int xpt, int ypt, int maxIter, int *img);
-void Generate(int frac, int start, int end, int *img);
+void putpixel(int x, int y, int color);
+void julia(int xpt, int ypt, int maxIter);
+void mandel(int xpt, int ypt, int maxIter);
+void Generate(int frac, int start, int end);
 void saveimg(int *img, int rx, int ry, char *fname);
 
 int main(int argc, char **argv)
@@ -128,10 +128,11 @@ int main(int argc, char **argv)
         MPI_Recv(&start, 1, MPI_INT, MASTER, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
         MPI_Recv(&end, 1, MPI_INT, MASTER, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
         printf("I am a slave %d of %d and I run from %d to %d\n", rank, size, start, end);
+        printf("I am a slave %d of %d and I run from %d to %d\n", rank, size, initer - end, initer - start);
 
-        int *img = (int *)malloc(resx * resy * sizeof(int));
-        Generate(0, start, end, img);
-        Generate(1, start, end, img);
+        img = (int *)malloc(resx * resy * sizeof(int));
+        Generate(0, start, end);
+        Generate(1, initer - end, initer - start);
         free(img);
     }
 
@@ -147,9 +148,9 @@ int main(int argc, char **argv)
  * If frac = 1 -> Julia
  *
  */
-void Generate(int frac, int start, int end, int *img)
+void Generate(int frac, int start, int end)
 {
-    for (int maxIter = start; maxIter <= end; maxIter++) // Each pixel loop
+    for (int maxIter = start; maxIter < end; maxIter++) // Each pixel loop
     {
         int j = 0;
         do // Start vertical loop
@@ -159,11 +160,11 @@ void Generate(int frac, int start, int end, int *img)
             {
                 if (frac)
                 {
-                    julia(i, j, maxIter, img);
+                    julia(i, j, maxIter);
                 }
                 else
                 {
-                    mandel(i, j, maxIter, img);
+                    mandel(i, j, maxIter);
                 }
                 i++;
             } while ((i < scrsizex)); // End horizontal loop
@@ -192,7 +193,7 @@ void Generate(int frac, int start, int end, int *img)
  * Recieves the x y point to compute the fractal and the max iteration
  */
 // Julia
-void julia(int xpt, int ypt, int maxIter, int *img)
+void julia(int xpt, int ypt, int maxIter)
 {
     long double x = xpt * pixcorx + Minx;
     long double y = Maxy - ypt * pixcory; // converting from pixels to points
@@ -215,12 +216,12 @@ void julia(int xpt, int ypt, int maxIter, int *img)
     if (color > 15)
         color = color % 15;
     if (k >= initer)
-        putpixel(img, xpt, ypt, 0);
+        putpixel(xpt, ypt, 0);
     else
-        putpixel(img, xpt, ypt, color);
+        putpixel(xpt, ypt, color);
 }
 // Mandel
-void mandel(int xpt, int ypt, int maxIter, int *img)
+void mandel(int xpt, int ypt, int maxIter)
 {
     long double x = 0;
     long double y = 0; // converting from pixels to points
@@ -242,13 +243,13 @@ void mandel(int xpt, int ypt, int maxIter, int *img)
     if (color > 15)
         color = color % 15;
     if (k >= initer)
-        putpixel(img, xpt, ypt, 0);
+        putpixel(xpt, ypt, 0);
     else
-        putpixel(img, xpt, ypt, color);
+        putpixel(xpt, ypt, color);
 }
 
 // Simple function to put a pixel col
-void putpixel(int *img, int x, int y, int color)
+void putpixel(int x, int y, int color)
 {
     img[y * resx + x] = color * 1111;
     // printf("x: %d y: %d color: %d img: %d\n", x, y, color, img[y * resx + x]);
